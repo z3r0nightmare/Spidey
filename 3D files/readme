@@ -1,0 +1,2 @@
+Modify the dimensions of your bot based on the electronics you’re using.
+In my case, I’ve used SG90 servos, 18650 batteries, an Arduino Nano, and an Arduino Nano expansion board.
