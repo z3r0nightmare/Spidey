@@ -1,0 +1,228 @@
+/*
+ * QUADRUPED ROBOT - GAMEPAD CONTROLLED
+ * ------------------------------------------------
+ * Hardware: Arduino Nano, PCA9685, HC-05
+ * Power: Battery -> Driver Terminal -> Nano VIN
+ *
+ * * * WIRING:
+ * - Driver SDA -> A4
+ * - Driver SCL -> A5
+ * - HC-05 TX   -> D10
+ * - HC-05 RX   -> D11
+ *
+ * * * GAMEPAD MAPPING:
+ * 'F' (Forward)  = Walk
+ * 'C' (Circle)   = Twerk
+ * 'T' (Triangle) = Hello
+ * 'X' (Cross)    = Stop
+ * 'P' (Pause)    = Stop
+ */
+
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+#include <SoftwareSerial.h>
+
+// --- COMMAND DEFINITIONS ---
+#define FORWARD   'F'
+#define BACKWARD  'B'
+#define LEFT      'L'
+#define RIGHT     'R'
+#define CIRCLE    'C'
+#define CROSS     'X'
+#define TRIANGLE  'T'
+#define SQUARE    'S'
+#define START     'A'
+#define PAUSE     'P'
+
+// --- BLUETOOTH SETUP ---
+SoftwareSerial btSerial(10, 11); // RX, TX
+
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+// --- CALIBRATION ---
+#define SERVOMIN  150 
+#define SERVOMAX  600 
+
+// --- PIN MAPPING (Includes your Leg 3 Swap) ---
+const int JOINT2 = 0; const int JOINT3 = 1; // Leg 1
+const int JOINT4 = 2; const int JOINT5 = 3; // Leg 2 (Normal)
+const int JOINT6 = 5; const int JOINT7 = 4; // Leg 3 (SWAPPED)
+const int JOINT8 = 6; const int JOINT9 = 7; // Leg 4
+
+// --- HOME POSITIONS ---
+const int HOME_KNEE = 180; 
+const int HOME_HIP  = 75;  
+
+// --- STATE VARIABLES ---
+char currentMode = CROSS; // Start in STOP mode
+
+// Twerk Variables
+int prog3 = 0, prog5 = 0, dir3 = 1, dir5 = 0;
+const int STEP = 2; 
+
+// --- PROTOTYPES ---
+void goHome();
+void setAngle(int pin, int angle);
+void walkCycle();
+void twerkCycle();
+void helloCycle();
+
+void setup() {
+  Serial.begin(9600);
+  btSerial.begin(9600); 
+  
+  Serial.println("Robot Online.");
+  Serial.println("Waiting for Gamepad...");
+
+  pwm.begin();
+  pwm.setPWMFreq(60); 
+  delay(100);
+
+  // Force Home on Startup
+  goHome();
+}
+
+void loop() {
+  // 1. LISTEN FOR COMMANDS
+  if (btSerial.available() > 0) {
+    char cmd = btSerial.read();
+    
+    // Ignore junk characters
+    if (cmd == '\n' || cmd == '\r' || cmd == ' ') return;
+    
+    Serial.print("Gamepad: ");
+    Serial.println(cmd);
+
+    // Map commands to modes
+    // You can add cases here if you want 'B' to do something later
+    if (cmd == FORWARD || cmd == CIRCLE || cmd == TRIANGLE || 
+        cmd == CROSS   || cmd == PAUSE) {
+      
+      currentMode = cmd;
+      
+      // Immediate Actions
+      if (currentMode == CROSS || currentMode == PAUSE) {
+        goHome();
+      }
+      
+      // Reset Twerk logic if switching to it
+      if (currentMode == CIRCLE) {
+        prog3 = 0; prog5 = 0; dir3 = 1; dir5 = 0;
+      }
+    }
+  }
+
+  // 2. EXECUTE CURRENT MODE
+  switch (currentMode) {
+    case FORWARD:
+      walkCycle();
+      break;
+      
+    case CIRCLE:
+      twerkCycle();
+      break;
+      
+    case TRIANGLE:
+      helloCycle();
+      break;
+      
+    case CROSS:
+    case PAUSE:
+      // Stay Home
+      break;
+      
+    default:
+      // For any undefined button (Left, Right, Square), just stay home
+      // goHome(); // Optional: Uncomment to force home on unknown buttons
+      break;
+  }
+}
+
+// ==========================================================
+//    ANIMATION LOGIC
+// ==========================================================
+
+void walkCycle() {
+  int walkSpeed = 30; 
+  int swingRange = 25; 
+
+  // Check for stop inside the loop for responsiveness
+  if (btSerial.available()) return;
+
+  // --- Pair B ---
+  setAngle(JOINT5, 140); setAngle(JOINT9, 140); delay(50);
+  for(int i=0; i<=swingRange; i+=5) {
+    setAngle(JOINT4, HOME_HIP + i); setAngle(JOINT8, HOME_HIP - i); delay(walkSpeed);
+  }
+  setAngle(JOINT5, HOME_KNEE); setAngle(JOINT9, HOME_KNEE); delay(50);
+  for(int i=0; i<=swingRange; i+=5) {
+    setAngle(JOINT4, (HOME_HIP + swingRange) - i); 
+    setAngle(JOINT8, (HOME_HIP - swingRange) + i); 
+    delay(walkSpeed);
+  }
+
+  // --- Pair A ---
+  setAngle(JOINT3, 140); setAngle(JOINT7, 140); delay(50);
+  for(int i=0; i<=swingRange; i+=5) {
+    setAngle(JOINT2, HOME_HIP + i); setAngle(JOINT6, HOME_HIP - i); delay(walkSpeed);
+  }
+  setAngle(JOINT3, HOME_KNEE); setAngle(JOINT7, HOME_KNEE); delay(50);
+  for(int i=0; i<=swingRange; i+=5) {
+    setAngle(JOINT2, (HOME_HIP + swingRange) - i); 
+    setAngle(JOINT6, (HOME_HIP - swingRange) + i); 
+    delay(walkSpeed);
+  }
+}
+
+void twerkCycle() {
+  int STEPS = HOME_KNEE - 100;
+  int MID_POINT = STEPS / 2;
+
+  prog3 += dir3 * STEP;
+  if (prog3 >= STEPS) { prog3 = STEPS; dir3 = -1; }
+  if (prog3 <= 0) { prog3 = 0; dir3 = 1; }
+  
+  int angle3 = HOME_KNEE - prog3;
+  int angle7 = HOME_KNEE + 100 - (HOME_KNEE - prog3); 
+  setAngle(JOINT3, angle3); setAngle(JOINT7, angle7);
+
+  if (dir5 == 0 && prog3 >= MID_POINT) { dir5 = 1; prog5 = 0; }
+
+  if (dir5 != 0) {
+    prog5 += dir5 * STEP;
+    if (prog5 >= STEPS) { prog5 = STEPS; dir5 = -1; }
+    if (prog5 <= 0) { prog5 = 0; dir5 = 1; }
+    int angle5 = HOME_KNEE - prog5;
+    int angle9 = HOME_KNEE + 100 - (HOME_KNEE - prog5); 
+    setAngle(JOINT5, angle5); setAngle(JOINT9, angle9);
+  }
+  delay(10);
+}
+
+void helloCycle() {
+  static int p = 0; static int d = 1;
+  p += d * STEP;
+  if (p >= 30) { d = -1; } if (p <= 0) { d = 1; }
+  setAngle(JOINT2, HOME_HIP - p); 
+  setAngle(JOINT3, 90);           
+  
+  // Lock others
+  setAngle(JOINT7, 90);
+  setAngle(JOINT5, HOME_KNEE); setAngle(JOINT9, HOME_KNEE);
+  setAngle(JOINT4, HOME_HIP);  setAngle(JOINT6, HOME_HIP); setAngle(JOINT8, HOME_HIP);
+  delay(10);
+}
+
+void goHome() {
+  setAngle(JOINT2, HOME_HIP); setAngle(JOINT3, HOME_KNEE);
+  setAngle(JOINT4, HOME_HIP); setAngle(JOINT5, HOME_KNEE);
+  setAngle(JOINT6, HOME_HIP); setAngle(JOINT7, HOME_KNEE);
+  setAngle(JOINT8, HOME_HIP); setAngle(JOINT9, HOME_KNEE);
+  delay(200);
+}
+
+void setAngle(int pin, int angle) {
+  if (angle < 0) angle = 0; if (angle > 180) angle = 180;
+  int pulse = map(angle, 0, 180, SERVOMIN, SERVOMAX);
+  pwm.setPWM(pin, 0, pulse);
+}
