@@ -1,17 +1,18 @@
 # 🕷️ Spider – The Robotic Pet
 
-Spider is a small **open-source quadruped robot pet** built using affordable and easily available components.  
-Designed around the **Arduino Nano**, it combines **motion, expression, and modular design** to make robotics fun and approachable for everyone — from beginners to hobbyists.
+**Spider** is a small, open-source quadruped robot built using affordable components.  
+Designed around the **Arduino Nano**, it combines **motion, expression, and wireless control** to make robotics fun and approachable. It features a custom walking gait, expressive OLED eyes, and full Bluetooth remote control via your phone.
 
 ---
 
 ## 🚀 Features
 
-- 🦾 **Quadruped Design** – 8 × SG90 servos for smooth leg movement  
-- 🧠 **Arduino Nano** – Simple and easily programmable microcontroller  
-- 🔋 **18650 Battery Power** – Rechargeable and portable  
-- 🖥️ **OLED Display (SSD1306)** – Used for displaying expressions, system info, and fun animations  
-- 🧩 **Modular Build** – You can easily modify 3D models and adapt the chassis for different electronics
+- 🦾 **Quadruped Design** – 8× SG90 servos for articulated leg movement.
+- 🧠 **Arduino Nano + PCA9685** – Efficient 16-channel servo control via I2C.
+- 📱 **Bluetooth Control** – Wireless walking, dancing (twerking), and actions via a specific Android app.
+- 🔋 **High-Current Power** – Powered by 2× 18650 Li-Ion batteries with separate logic/motor rails.
+- 🖥️ **OLED Eyes** – Animated expressions (Happy, Focused, Wink, Sleep) that react to commands.
+- 🧩 **Modular Chassis** – 3D printed parts designed for easy modification.
 
 ---
 
@@ -19,54 +20,97 @@ Designed around the **Arduino Nano**, it combines **motion, expression, and modu
 
 | Component | Quantity | Description |
 |------------|-----------|-------------|
-| SG90 Servo Motor | 8 | For leg movement |
-| Arduino Nano | 1 | Main controller |
-| Arduino Nano Expansion Board | 1 | For easier wiring |
-| 18650 Battery | 2 | Power source |
-| OLED Display (SSD1306) | 1 | For facial expressions and feedback |
-| Jumper Wires, Screws, 3D Printed Parts | – | For assembly |
+| Arduino Nano | 1 | Main microcontroller |
+| PCA9685 Servo Driver | 1 | 16-Channel PWM driver (I2C) |
+| SG90 Servo Motor | 8 | Joints (4 Hips, 4 Knees) |
+| HC-05 Bluetooth Module | 1 | For wireless app control |
+| 18650 Batteries | 2 | 7.4V Power Source |
+| OLED Display (SSD1306) | 1 | 128x64 I2C Display |
+| Jumper Wires & Screws | – | Wiring and assembly |
+
+---
+
+## ⚡ Circuit Diagram & Wiring
+
+The robot uses a **Split Power System** to prevent brownouts. The servos draw power directly from the batteries, while the Arduino gets regulated power via VIN.
+
+![Circuit Diagram Placeholder](https://via.placeholder.com/800x400?text=Insert+Your+Circuit+Diagram+Here)
+*(Replace this image link with your own circuit diagram)*
+
+### 1. Power Connections
+* **Battery (+)** → **PCA9685 Green Terminal (+)** → **Arduino VIN**
+* **Battery (-)** → **PCA9685 Green Terminal (-)** → **Arduino GND**
+    * *Note: Do not power servos through the Arduino 5V pin!*
+
+### 2. Logic Connections (I2C Bus)
+* **PCA9685 SDA** → **Arduino A4**
+* **PCA9685 SCL** → **Arduino A5**
+* **PCA9685 VCC** → **Arduino 5V**
+* **PCA9685 GND** → **Arduino GND**
+* *(Optional OLED shares the same SDA/SCL pins)*
+
+### 3. Bluetooth (HC-05)
+* **HC-05 VCC** → **Arduino 5V**
+* **HC-05 GND** → **Arduino GND**
+* **HC-05 TX** → **Arduino D10** (SoftwareSerial RX)
+* **HC-05 RX** → **Arduino D11** (SoftwareSerial TX)
+
+### 4. Servo Pin Mapping
+*Connect servos to the PCA9685 board pins as follows:*
+
+| Leg | Position | Hip Pin | Knee Pin | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **Leg 1** | Front Right | 0 | 1 | Normal |
+| **Leg 2** | Back Right | 2 | 3 | Normal |
+| **Leg 3** | Back Left | **5** | **4** | **SWAPPED** (Hip=5, Knee=4) |
+| **Leg 4** | Front Left | 6 | 7 | Normal |
+
+---
+
+## 📱 Mobile App Configuration
+
+To control the robot, you need to use a specific app that supports **Gamepad Mode**.
+
+1.  **Download:** Go to the Google Play Store and download **"Arduino Bluetooth Control"** (look for the controller icon).
+2.  **Connect:** Pair your phone with the HC-05 module (Default pin is usually `1234` or `0000`).
+3.  **Mode:** Open the app, connect to the robot, and select **"Gamepad Mode"**.
+4.  **Button Mapping:**
+    The code is pre-configured to work with the default keys of this app:
+    * **Forward Arrow (F):** Walk Forward
+    * **Circle Button (C):** Twerk (Dance)
+    * **Triangle Button (T):** Hello (Wave)
+    * **Cross Button (X):** Stop / Home Position
+    * **Pause Button (P):** Stop / Home Position
 
 ---
 
 ## ⚙️ Setup & Usage
 
-1. **3D Print** the body parts from the provided STL files.  
-2. **Assemble** the servos and wire them according to the circuit diagram.  
-3. **Upload the Code** to the Arduino Nano using the Arduino IDE.  
-4. **Power Up** the bot with your 18650 batteries.  
-5. Watch your **Spider** come alive!
-
-> 💡 **Tip:** Modify the dimensions of your bot based on the components you’re using —  
-> I used SG90 servos, 18650 batteries, and an Arduino Nano with an expansion board.
-
----
-
-## 🧩 Customization
-
-- You can change the **chassis dimensions** or **servo layout** based on your setup.  
-- Modify the **OLED animations** to give Spider a unique personality.  
-- Experiment with different **gaits and leg movement patterns**.
+1.  **3D Print** the chassis parts.
+2.  **Wiring:** Follow the circuit diagram above. Ensure Leg 3 wires are swapped (Pin 5/4) as per the code logic.
+3.  **Upload Code:** Flash the `Spider_Main.ino` to the Nano via Arduino IDE.
+4.  **Power Up:** Turn on the battery switch. The robot will move to the "Home" position and wait.
+5.  **Connect & Play:** Open the app, hit connect, and press **Forward** to make it walk!
 
 ---
 
 ## 🔮 Future Upgrades (Planned)
 
-- 📱 **Wireless Control** – Control Spider directly from a smartphone app or web interface  
-- 🚶 **Walking Features** – Adding walking, turning, and stable movement algorithms  
-- 📶 **Bluetooth / Wi-Fi Module Integration** – For remote control and sensor data transmission  
-- 🗣️ **Interactive Mode** – Responding to gestures or voice commands  
+- 📡 **ESP32 Upgrade** – Replace Nano with ESP32 for built-in Bluetooth/WiFi and faster processing.
+- 📐 **Inverse Kinematics** – Smoother, mathematically calculated leg movement.
+- 🦇 **Ultrasonic Sensors** – Obstacle avoidance and autonomous roaming mode.
+- 🗣️ **Voice Control** – Commands via voice recognition module.
 
 ---
 
 ## 🤝 Contribute
 
-Spider is **open source** — feel free to fork, modify, and share your own version!  
-If you make an improvement or design a new feature, I’d love to see it.
+Spider is **open source** — feel free to fork, modify, and share your own version!
+If you fix a bug or design a cool new chassis, pull requests are welcome.
 
 ---
 
 ## 📸 Credits
 
-Developed by **Biswa (Secr0ti)**  
-Follow for more open-source robotics and creative hardware projects 👇  
+Developed by **Biswa (Secr0ti)** Follow for more open-source robotics and creative hardware projects 👇  
 📷 [Instagram – @secr0ti](https://instagram.com/secr0ti)
