@@ -34,8 +34,7 @@ Designed around the **Arduino Nano**, it combines **motion, expression, and wire
 
 The robot uses a **Split Power System** to prevent brownouts. The servos draw power directly from the batteries, while the Arduino gets regulated power via VIN.
 
-![Circuit Diagram Placeholder](https://via.placeholder.com/800x400?text=Insert+Your+Circuit+Diagram+Here)
-*(Replace this image link with your own circuit diagram)*
+
 
 ### 1. Power Connections
 * **Battery (+)** → **PCA9685 Green Terminal (+)** → **Arduino VIN**
